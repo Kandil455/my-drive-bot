@@ -1,0 +1,6 @@
+aiogram==3.0.0b7
+google-api-python-client>=2.74.0
+google-auth>=2.20.0
+google-auth-httplib2>=0.1.0
+aiofiles>=23.1.0
+python-dotenv>=1.0.0

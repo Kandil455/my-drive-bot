@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.db
+*.sqlite
+.env
+lofty-hybrid-473105-u0-328222c1eff9.json
+bot_data.db
+start_bot.sh

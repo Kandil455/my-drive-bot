@@ -6,6 +6,7 @@ import socket
 import ssl
 import time
 from functools import lru_cache
+from pathlib import Path
 from typing import Dict, List, Optional
 
 from google.oauth2.service_account import Credentials
@@ -19,6 +20,8 @@ SERVICE_ACCOUNT_PATH = os.environ.get("GOOGLE_CREDENTIALS_PATH")
 DELEGATED_USER = os.environ.get("GOOGLE_DELEGATED_USER")
 _DEFAULT_FOLDER_ID = os.environ.get("DEFAULT_DRIVE_FOLDER")
 
+BASE_DIR = Path(__file__).resolve().parent
+
 raw_team_map = os.environ.get("TEAM_FOLDER_MAP", "")
 TEAM_FOLDER_MAP: Dict[str, str] = {}
 if raw_team_map:
@@ -31,13 +34,35 @@ if raw_team_map:
                 TEAM_FOLDER_MAP[key.strip()] = value.strip()
 
 
-def _ensure_credentials() -> Credentials:
+def _resolve_service_account_path() -> Path:
     if not SERVICE_ACCOUNT_PATH:
         raise RuntimeError("GOOGLE_CREDENTIALS_PATH must be set to a service-account JSON file")
-    if not os.path.exists(SERVICE_ACCOUNT_PATH):
-        raise FileNotFoundError(f"Google service account file not found: {SERVICE_ACCOUNT_PATH}")
+    raw_path = Path(SERVICE_ACCOUNT_PATH)
+    resolved = raw_path.expanduser()
+    if not resolved.is_absolute():
+        resolved = BASE_DIR / resolved
+    if resolved.exists():
+        return resolved
+
+    fallback_candidate = BASE_DIR / raw_path.name
+    if fallback_candidate != resolved and fallback_candidate.exists():
+        logging.warning(
+            "Service account file %s not found, falling back to %s",
+            resolved,
+            fallback_candidate,
+        )
+        return fallback_candidate
+
+    fallback_note = ""
+    if fallback_candidate != resolved:
+        fallback_note = f" (also checked {fallback_candidate})"
+    raise FileNotFoundError(f"Google service account file not found: {resolved}{fallback_note}")
+
+
+def _ensure_credentials() -> Credentials:
+    service_account_path = _resolve_service_account_path()
     return Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_PATH,
+        service_account_path,
         scopes=SCOPES,
         subject=DELEGATED_USER,
     )
